@@ -1,6 +1,7 @@
 package courses
 
 import (
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"time"
 )
@@ -13,4 +14,11 @@ type Course struct {
 	CreatedAt time.Time      `xml:"-"`
 	UpdatedAt time.Time      `xml:"-"`
 	Delete    gorm.DeletedAt `xml:"-"`
+}
+
+func (c *Course) BeforeCreate(tx *gorm.DB) (err error) {
+	if c.ID == "" {
+		c.ID = uuid.New().String()
+	}
+	return nil
 }

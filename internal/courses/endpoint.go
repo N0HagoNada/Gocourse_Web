@@ -1,4 +1,4 @@
-package users
+package courses
 
 import (
 	"encoding/xml"
@@ -18,19 +18,17 @@ type (
 		Delete Controller
 	}
 	CreateReq struct {
-		XMLName   xml.Name `xml:"CreateUser"`
-		FirstName string   `xml:"name"`
-		LastName  string   `xml:"lastName"`
-		Email     string   `xml:"email,omitempty"`
-		Phone     string   `xml:"phone,omitempty"`
+		XMLName   xml.Name `xml:"CreateCourse"`
+		Name      string   `xml:"name"`
+		StartDate string   `xml:"startDate"`
+		EndDate   string   `xml:"endDate,omitempty"`
 	}
 
 	UpdateReq struct {
-		XMLName   xml.Name `xml:"UpdateUser"`
-		FirstName *string  `xml:"name,omitempty"`
-		LastName  *string  `xml:"lastName,omitempty"`
-		Email     *string  `xml:"email,omitempty"`
-		Phone     *string  `xml:"phone,omitempty"`
+		XMLName   xml.Name `xml:"UpdateCourse"`
+		Name      *string  `xml:"name"`
+		StartDate *string  `xml:"start_date,omitempty"`
+		EndDate   *string  `xml:"end_date,omitempty"`
 	}
 	Response struct {
 		XMLName xml.Name    `xml:"Response"`
@@ -41,7 +39,6 @@ type (
 	}
 )
 
-// Capa de Presentacion | endpoints, validaciones simples
 func MakeEndpoints(s Service) Endpoints {
 	return Endpoints{
 		Create: makeCreateEndpoint(s),
@@ -50,7 +47,26 @@ func MakeEndpoints(s Service) Endpoints {
 		Update: makeUpdateEndpoint(s),
 		Delete: makeDeleteEndpoint(s),
 	}
+}
 
+func makeGetEndpoint(s Service) Controller {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		path := mux.Vars(r)
+		id := path["id"]
+		course, err := s.Get(id)
+		if err != nil {
+			w.WriteHeader(http.StatusNotFound)
+			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 404, nil, "Not Found Courses", nil}); err != nil {
+				log.Println(err)
+			}
+		}
+		err = xml.NewEncoder(w).Encode(Response{xml.Name{}, 200, course, "", nil})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			log.Fatal(err)
+		}
+	}
 }
 func makeCreateEndpoint(s Service) Controller {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -63,58 +79,21 @@ func makeCreateEndpoint(s Service) Controller {
 			}
 			return
 		}
-		if req.FirstName == "" {
+		if req.Name == "" {
 			w.WriteHeader(406)
 			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 406, nil, "name is required", nil}); err != nil {
 				log.Println(err)
 			}
 			return
 		}
-		if req.LastName == "" {
-			w.WriteHeader(406)
-			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 406, nil, "name is required", nil}); err != nil {
-				log.Println(err)
-			}
-			return
-		}
-		user, err := s.Create(req.FirstName, req.LastName, req.Email, req.Phone)
+		course, err := s.Create(req.Name, req.StartDate, req.EndDate)
 		if err != nil {
-			w.WriteHeader(http.StatusConflict)
-			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 404, nil, "Not Found User", nil}); err != nil {
-				log.Println(err)
-			}
+			w.WriteHeader(400)
+			_ = xml.NewEncoder(w).Encode(&Response{XMLName: xml.Name{}, Status: 400, Err: err.Error()})
 			return
 		}
 		w.WriteHeader(200)
-		err = xml.NewEncoder(w).Encode(Response{xml.Name{}, 200, user, "", nil})
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			log.Println(err)
-		}
-	}
-}
-func makeGetAllEndpoint(s Service) Controller {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/xml")
-
-		v := r.URL.Query()
-
-		filters := Filters{
-			FirstName: v.Get("name"),
-		}
-		count, err := s.Count(filters)
-		if err != nil {
-			w.WriteHeader(500)
-			_ = xml.NewEncoder(w).Encode(&Response{xml.Name{}, 500, nil, err.Error(), nil})
-			return
-		}
-		data, _ := meta.New(count)
-		users, _ := s.GetAll(filters)
-		if err := xml.NewEncoder(w).Encode(&Response{xml.Name{}, 200, users, "", data}); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			log.Fatal(err)
-		}
-
+		_ = xml.NewEncoder(w).Encode(&Response{Status: 200, Data: course})
 	}
 }
 func makeDeleteEndpoint(s Service) Controller {
@@ -124,7 +103,7 @@ func makeDeleteEndpoint(s Service) Controller {
 		id := path["id"]
 		if err := s.Delete(id); err != nil {
 			w.WriteHeader(http.StatusNotFound)
-			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 404, nil, "Not Found User", nil}); err != nil {
+			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 404, nil, "Not Found Course", nil}); err != nil {
 				log.Println(err)
 			}
 			return
@@ -150,7 +129,7 @@ func makeUpdateEndpoint(s Service) Controller {
 			}
 			return
 		}
-		user, err := s.Update(id, req.FirstName, req.LastName, req.Email, req.Phone)
+		user, err := s.Update(id, req.Name, req.StartDate, req.EndDate)
 		if err != nil {
 			w.WriteHeader(http.StatusNotFound)
 			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 404, nil, "Not Found User", nil}); err != nil {
@@ -166,22 +145,27 @@ func makeUpdateEndpoint(s Service) Controller {
 		}
 	}
 }
-func makeGetEndpoint(s Service) Controller {
+func makeGetAllEndpoint(s Service) Controller {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/xml")
-		path := mux.Vars(r)
-		id := path["id"]
-		user, err := s.Get(id)
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			if err := xml.NewEncoder(w).Encode(Response{xml.Name{}, 404, nil, "Not Found User", nil}); err != nil {
-				log.Println(err)
-			}
+
+		v := r.URL.Query()
+
+		filters := Filters{
+			Name: v.Get("name"),
 		}
-		err = xml.NewEncoder(w).Encode(Response{xml.Name{}, 200, user, "", nil})
+		count, err := s.Count(filters)
 		if err != nil {
+			w.WriteHeader(500)
+			_ = xml.NewEncoder(w).Encode(&Response{xml.Name{}, 500, nil, err.Error(), nil})
+			return
+		}
+		data, _ := meta.New(count)
+		users, _ := s.GetAll(filters)
+		if err := xml.NewEncoder(w).Encode(&Response{xml.Name{}, 200, users, "", data}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			log.Fatal(err)
 		}
+
 	}
 }

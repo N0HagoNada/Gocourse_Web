@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"fmt"
 	"github.com/joho/godotenv"
+	"gocourse/internal/courses"
 	"gocourse/internal/users"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -37,6 +38,9 @@ func DBConnection() (*gorm.DB, error) {
 	}
 	if os.Getenv("DATABASE_MIGRATE") == "True" {
 		if err := db.AutoMigrate(&users.User{}); err != nil {
+			return nil, err
+		}
+		if err := db.AutoMigrate(&courses.Course{}); err != nil {
 			return nil, err
 		}
 	}

@@ -1,21 +1,14 @@
 package main
 
 import (
-	"encoding/xml"
-	"fmt"
 	"github.com/gorilla/mux"
+	"gocourse/internal/courses"
 	"gocourse/internal/users"
 	"gocourse/pkg/bootstrap"
 	"log"
 	"net/http"
 	"time"
 )
-
-// Respond XML struct
-type Response struct {
-	Greeting string
-	Names    []string `xml:"Names>Name"`
-}
 
 func main() {
 
@@ -32,12 +25,21 @@ func main() {
 	}
 	userSrv := users.NewService(l, userRepo)
 	userEnd := users.MakeEndpoints(userSrv)
+	courseRepo, _ := courses.NewRepo(l, db)
+	coursesSrv := courses.NewService(l, courseRepo)
+	coursesEnd := courses.MakeEndpoints(coursesSrv)
+
 	router.HandleFunc("/users", userEnd.GetAll).Methods(http.MethodGet)
 	router.HandleFunc("/users/{id}", userEnd.Get).Methods(http.MethodGet)
 	router.HandleFunc("/users/{id}", userEnd.Delete).Methods(http.MethodDelete)
 	router.HandleFunc("/users/{id}", userEnd.Update).Methods(http.MethodPatch)
 	router.HandleFunc("/users", userEnd.Create).Methods(http.MethodPost)
-	router.HandleFunc("/courses", getCourses).Methods(http.MethodGet)
+
+	router.HandleFunc("/courses", coursesEnd.Create).Methods(http.MethodPost)
+	router.HandleFunc("/courses", coursesEnd.GetAll).Methods(http.MethodGet)
+	router.HandleFunc("/courses/{id}", coursesEnd.Get).Methods(http.MethodGet)
+	router.HandleFunc("/courses/{id}", coursesEnd.Delete).Methods(http.MethodDelete)
+	router.HandleFunc("/courses/{id}", coursesEnd.Update).Methods(http.MethodPatch)
 
 	server := &http.Server{
 		Handler:      router,
@@ -47,19 +49,6 @@ func main() {
 	}
 	if err := server.ListenAndServe(); err != nil {
 		l.Fatal(err)
-	}
-
-}
-
-func getCourses(w http.ResponseWriter, r *http.Request) {
-	response := Response{"Hello", []string{"World", "Courses"}}
-	// x, err := xml.MarshalIndent(response, "", " ")
-	fmt.Println("got /courses")
-	w.Header().Set("Content-Type", "application/xml")
-	err := xml.NewEncoder(w).Encode(response)
-	fmt.Println(response.Names)
-	if err != nil {
-		log.Fatal(err)
 	}
 
 }
