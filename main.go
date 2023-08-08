@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/gorilla/mux"
 	"gocourse/internal/users"
+	"gocourse/pkg/bootstrap"
 	"log"
 	"net/http"
 	"time"
@@ -20,11 +21,21 @@ func main() {
 
 	router := mux.NewRouter()
 
-	userEnd := users.MakeEndpoints()
-	router.HandleFunc("/users", userEnd.GetAll).Methods(http.MethodGet).Methods(http.MethodGet)
-	// router.HandleFunc("/users", userEnd.Get).Methods(http.MethodGet).Methods(http.MethodGet)
-	// router.HandleFunc("/users", userEnd.Delete).Methods(http.MethodGet).Methods(http.MethodPost)
-	// router.HandleFunc("/users", userEnd.Update).Methods(http.MethodGet).Methods(http.MethodPost)
+	l := bootstrap.InitLogger()
+	db, err := bootstrap.DBConnection()
+	if err != nil {
+		l.Println(err)
+	}
+	userRepo, err := users.NewRepo(l, db)
+	if err != nil {
+		log.Fatal(err)
+	}
+	userSrv := users.NewService(l, userRepo)
+	userEnd := users.MakeEndpoints(userSrv)
+	router.HandleFunc("/users", userEnd.GetAll).Methods(http.MethodGet)
+	router.HandleFunc("/users/{id}", userEnd.Get).Methods(http.MethodGet)
+	router.HandleFunc("/users/{id}", userEnd.Delete).Methods(http.MethodDelete)
+	router.HandleFunc("/users/{id}", userEnd.Update).Methods(http.MethodPatch)
 	router.HandleFunc("/users", userEnd.Create).Methods(http.MethodPost)
 	router.HandleFunc("/courses", getCourses).Methods(http.MethodGet)
 
@@ -34,9 +45,8 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-	err := server.ListenAndServe()
-	if err != nil {
-		log.Fatal(err)
+	if err := server.ListenAndServe(); err != nil {
+		l.Fatal(err)
 	}
 
 }
@@ -45,7 +55,7 @@ func getCourses(w http.ResponseWriter, r *http.Request) {
 	response := Response{"Hello", []string{"World", "Courses"}}
 	// x, err := xml.MarshalIndent(response, "", " ")
 	fmt.Println("got /courses")
-	w.Header().Set("Content-Type", "text/xml")
+	w.Header().Set("Content-Type", "application/xml")
 	err := xml.NewEncoder(w).Encode(response)
 	fmt.Println(response.Names)
 	if err != nil {
