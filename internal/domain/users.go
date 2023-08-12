@@ -1,4 +1,4 @@
-package users
+package domain
 
 import (
 	"github.com/google/uuid"
@@ -13,6 +13,7 @@ type User struct {
 	LastName  string    `xml:"lastName" gorm:"type:char(50);not null"`
 	Email     string    `xml:"email" gorm:"type:char(50);not null"`
 	Phone     string    `xml:"phone" gorm:"type:char(30)"`
+	Course    *Course   `gorm:"-"`
 	CreatedAt time.Time `xml:"-"`
 	UpdatedAt time.Time `xml:"-"`
 }

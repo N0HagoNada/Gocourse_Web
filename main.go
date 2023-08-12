@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gorilla/mux"
 	"gocourse/internal/courses"
+	"gocourse/internal/enrollment"
 	"gocourse/internal/users"
 	"gocourse/pkg/bootstrap"
 	"log"
@@ -25,9 +26,14 @@ func main() {
 	}
 	userSrv := users.NewService(l, userRepo)
 	userEnd := users.MakeEndpoints(userSrv)
+
 	courseRepo, _ := courses.NewRepo(l, db)
 	coursesSrv := courses.NewService(l, courseRepo)
 	coursesEnd := courses.MakeEndpoints(coursesSrv)
+
+	enrollRepo := enrollment.NewRepo(db, l)
+	enrollSrv := enrollment.NewService(l, userSrv, coursesSrv, enrollRepo)
+	enrollEnd := enrollment.MakeEndpoints(enrollSrv)
 
 	router.HandleFunc("/users", userEnd.GetAll).Methods(http.MethodGet)
 	router.HandleFunc("/users/{id}", userEnd.Get).Methods(http.MethodGet)
@@ -40,6 +46,8 @@ func main() {
 	router.HandleFunc("/courses/{id}", coursesEnd.Get).Methods(http.MethodGet)
 	router.HandleFunc("/courses/{id}", coursesEnd.Delete).Methods(http.MethodDelete)
 	router.HandleFunc("/courses/{id}", coursesEnd.Update).Methods(http.MethodPatch)
+
+	router.HandleFunc("/enrollment", enrollEnd.Create).Methods(http.MethodPost)
 
 	server := &http.Server{
 		Handler:      router,

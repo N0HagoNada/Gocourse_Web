@@ -1,15 +1,18 @@
 package users
 
-import "log"
+import (
+	"gocourse/internal/domain"
+	"log"
+)
 
 // capa de Servicio | logica de negocio
 type (
 	Service interface {
-		Create(firstName, lastName, email, phone string) (*User, error)
-		Get(id string) (*User, error)
-		GetAll(filters Filters) ([]User, error)
+		Create(firstName, lastName, email, phone string) (*domain.User, error)
+		Get(id string) (*domain.User, error)
+		GetAll(filters Filters) ([]domain.User, error)
 		Delete(id string) error
-		Update(id string, firstName, lastName, email, phone *string) (*User, error)
+		Update(id string, firstName, lastName, email, phone *string) (*domain.User, error)
 		Count(filters Filters) (int, error)
 	}
 	service struct {
@@ -28,9 +31,9 @@ func NewService(log *log.Logger, repo Respository) Service {
 		repo: repo,
 	}
 }
-func (s service) Create(firstName, lastName, email, phone string) (*User, error) {
+func (s service) Create(firstName, lastName, email, phone string) (*domain.User, error) {
 	s.log.Println("Create user service")
-	user := User{
+	user := domain.User{
 		FirstName: firstName,
 		LastName:  lastName,
 		Email:     email,
@@ -42,14 +45,14 @@ func (s service) Create(firstName, lastName, email, phone string) (*User, error)
 	}
 	return &user, nil
 }
-func (s service) Get(id string) (*User, error) {
+func (s service) Get(id string) (*domain.User, error) {
 	users, err := s.repo.Get(id)
 	if err != nil {
 		return nil, err
 	}
 	return users, nil
 }
-func (s service) GetAll(filters Filters) ([]User, error) {
+func (s service) GetAll(filters Filters) ([]domain.User, error) {
 
 	users, err := s.repo.GetAll(filters)
 	if err != nil {
@@ -64,7 +67,7 @@ func (s service) Delete(id string) error {
 	}
 	return s.repo.Delete(id)
 }
-func (s service) Update(id string, firstName, lastName, email, phone *string) (*User, error) {
+func (s service) Update(id string, firstName, lastName, email, phone *string) (*domain.User, error) {
 	err := s.repo.Update(id, firstName, lastName, email, phone)
 	if err != nil {
 		return nil, err
